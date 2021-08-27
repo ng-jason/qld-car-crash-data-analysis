@@ -1,19 +1,20 @@
 import streamlit as st
 from streamlit_folium import folium_static
+import altair as alt
 import pandas as pd
 import math
 import folium
 from folium import Marker
 from folium.plugins import MarkerCluster, Fullscreen
 
-
+st.set_page_config(layout='wide')
 
 st.header("QLD Car Crash Data Visualisation")
 st.write("""
 [Crash data from Queensland roads](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads) contains data about road crash locations, road casualties, driver demographics, seatbelt restraits and helmet use, vehicle types and factors in road crashes.
-
-This app aims to visualise the data. 
 """)
+
+left_col, right_col = st.columns(2)
 
 
 @st.cache
@@ -40,7 +41,7 @@ def make_map(year):
     
     data = rcl[rcl['Crash_Year'] == year]
 
-    for idx, row in data[:5].iterrows():
+    for idx, row in data[:100].iterrows():
         if not math.isnan(row.Crash_Latitude_GDA94) and \
             not math.isnan(row.Crash_Longitude_GDA94):
             popuptext = f"Crash time: Hour = {row.Crash_Hour}, {row.Crash_Day_Of_Week} {row.Crash_Month} {row.Crash_Year}<br>\
@@ -61,14 +62,40 @@ def make_map(year):
     return m
 
 
-
 rcl = get_data()
 
-year = st.select_slider(
-            "Select year to visualise data:",
-            options=range(rcl.Crash_Year.min(), rcl.Crash_Year.max()+1)
+with left_col:
+    year = st.select_slider(
+                "Select year to visualise data:",
+                options=range(rcl.Crash_Year.min(), rcl.Crash_Year.max()+1)
+                )
+    
+    rcl_year = rcl[rcl.Crash_Year == year]
+
+    
+    st.write(f"Roads with the most crashes in **{year}** were", 
+             (rcl_year.groupby('Crash_Street').size().reset_index(name='Count').
+                      sort_values(by='Count', ascending=False)[:10])
             )
 
-m = make_map(year)
 
-folium_static(m)
+    # total crash count each year chart
+    total_year = rcl.groupby('Crash_Year').size().reset_index(name='Count')
+    chart = alt.Chart(total_year).mark_bar().encode(
+        x='Crash_Year:O',  # https://altair-viz.github.io/user_guide/encoding.html#encoding-data-types
+        y='Count'
+    ).properties(title='Total crash count each year')
+    st.altair_chart(chart, use_container_width=True)
+
+    # data.head()
+    st.write("First five rows of data", rcl[rcl['Crash_Year'] == year].head())
+    
+    
+
+with right_col:
+    
+    
+    m = make_map(year)
+
+    folium_static(m)
+
