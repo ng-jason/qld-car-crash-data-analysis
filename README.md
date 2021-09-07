@@ -1,4 +1,4 @@
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ng-jason/qld-car-crash-data-analysis/blob/main/notebook.ipynb)   [![Binder](https://mybinder.org/badge_logo.svg)](https://hub.gke2.mybinder.org/user/ng-jason-qld-ca-h-data-analysis-a7gbw3jt/notebooks/notebook.ipynb)   [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/ng-jason/qld-car-crash-data-analysis/main)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ng-jason/qld-car-crash-data-analysis/blob/main/notebook.ipynb)   [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ng-jason/qld-car-crash-data-analysis/HEAD)   [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/ng-jason/qld-car-crash-data-analysis/main)
 
 
 # qld-car-crash-data-analysis
