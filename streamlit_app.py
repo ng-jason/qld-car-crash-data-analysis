@@ -19,7 +19,7 @@ def get_data():
     return rcl
 
 @st.cache
-def subset_data(data, year=None, suburb=None, street=None, ignore_property=True):
+def subset_data(data, year=2020, suburb=None, street=None, ignore_property=True):
     if ignore_property:
         data = data[data['Crash_Severity'] != 'Property damage only']
 
@@ -99,7 +99,7 @@ with st.sidebar:
     with st.form(key='my_form'):
         year = st.selectbox(
                     "Select year to visualise data:",
-                    options=[None] + list(range(2020, 2000, -1))
+                    options=list(range(2020, 2000, -1))
                     )
 
         suburb = st.selectbox("Select suburb", 
@@ -135,6 +135,7 @@ if property_only:
 st.write("""
 ### Map visualisation of road crash locations
 """)
+
 map_data = subset_data(rcl, year, suburb, street, property_only)
 m = make_map(map_data)
 folium_static(m)
