@@ -7,7 +7,9 @@
 
 Data analysis and visualisation of data in `notebook.ipynb`.
 
-A visualisation of the data is also available as a Streamlit app in `streamlit_app.py`
+A visualisation of the data is also available as a Streamlit app in `streamlit_app.py` and can be viewed [here](https://share.streamlit.io/ng-jason/qld-car-crash-data-analysis/main).
+
+![Streamlit app screenshot](https://i.imgur.com/s63k66o.png)
 
 
 
