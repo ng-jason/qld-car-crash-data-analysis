@@ -117,7 +117,7 @@ rcl = get_data()
 with st.sidebar:
     st.header("QLD Car Crash Data Visualisation")
     st.write("""
-    [Crash data from Queensland roads](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads) contains data about road crash locations, road casualties, driver demographics, seatbelt restraits and helmet use, vehicle types and factors in road crashes.
+    [Crash data from Queensland roads](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads) contains data about road crash locations, road casualties, driver demographics, seatbelt restraints and helmet use, vehicle types and factors in road crashes.
     """)
 
 
