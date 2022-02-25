@@ -8,23 +8,34 @@ import folium
 from folium import Marker
 from folium.plugins import MarkerCluster, Fullscreen
 
-# this was done after the jupyter notebook so most code below is from there
-
 st.set_page_config()
 
 @st.cache
 def get_data():
+    # Function to get road crash locations dataset
     rcl_url = 'https://www.data.qld.gov.au/dataset/f3e0ca94-2d7b-44ee-abef-d6b06e9b0729/resource/e88943c0-5968-4972-a15f-38e120d72ec0/download/1_crash_locations.csv'
     rcl = pd.read_csv(rcl_url)
     return rcl
 
 @st.cache
 def subset_data(data, year=2020, suburb=None, street=None, ignore_property=True):
+    """Subset data given year, suburb and street
+
+    Args:
+        data (pd.DataFrame): 
+        year (int, optional): Defaults to None.
+        suburb (str, optional): Defaults to None.
+        street (str, optional): Defaults to None.
+
+    Returns:
+        pd.DataFrame: data filtered by given arguments
+    """
     if ignore_property:
         data = data[data['Crash_Severity'] != 'Property damage only']
 
     if year:
-        data = data[data['Crash_Year'] == year]
+        if year != 'All (note: may be very slow)':
+            data = data[data['Crash_Year'] == year]
 
     if suburb:
         try:
@@ -42,7 +53,15 @@ def subset_data(data, year=2020, suburb=None, street=None, ignore_property=True)
 # https://github.com/python-visualization/folium/tree/master/examples
 @st.cache(allow_output_mutation=True)
 def make_map(map_data):
-    
+    """Creates folium map with Markers and MarkerClusters with popup text containing crash data info
+
+    Args:
+        map_data (pd.DataFrame): data from the road crash locations dataset to create map of
+
+    Returns:
+        folium Map object
+    """
+
     brisbane = [-27.467778, 153.028056]
     m = folium.Map(location=brisbane,
                zoom_start=7,
@@ -53,11 +72,12 @@ def make_map(map_data):
 
     # add marker cluster
     mc = MarkerCluster()
-    # TODO: try use FastMarkerCluster
     
     for idx, row in map_data.iterrows():
+        # plot data points that have both latitude/longitude 
         if not np.isnan(row.Crash_Latitude_GDA94) and \
             not np.isnan(row.Crash_Longitude_GDA94):
+            # display selected data to show in popuptext
             popuptext = f"Crash time: Hour = {row.Crash_Hour}, {row.Crash_Day_Of_Week} {row.Crash_Month} {row.Crash_Year}<br>\
                     Crash Severity: {row.Crash_Severity}<br>\
                     Crash Type: {row.Crash_Type}<br>\
@@ -69,12 +89,16 @@ def make_map(map_data):
                     Fatality Total: {row.Count_Casualty_Fatality}<br>\
                     Crash Ref Number: {row.Crash_Ref_Number}"
             popup = folium.Popup(popuptext, min_width=300, max_width=500)
+
+            # colour the marker depending on crash severity
             if row.Crash_Severity == 'Fatal':
                 icon_color = 'red'
             elif row.Crash_Severity == 'Hospitalisation' or row.Crash_Severity == 'Minor injury':
                 icon_color = 'orange'
             else:
                 icon_color = 'beige'
+            
+            # finally add Marker to MarkerCluster
             mc.add_child(Marker([row.Crash_Latitude_GDA94, row.Crash_Longitude_GDA94], 
                                 popup=popup,
                                 icon=folium.Icon(color=icon_color)
@@ -89,17 +113,19 @@ def make_map(map_data):
 rcl = get_data()
 
 
-# sidebar
+####### sidebar #######
 with st.sidebar:
     st.header("QLD Car Crash Data Visualisation")
     st.write("""
     [Crash data from Queensland roads](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads) contains data about road crash locations, road casualties, driver demographics, seatbelt restraits and helmet use, vehicle types and factors in road crashes.
     """)
 
+
     with st.form(key='my_form'):
         year = st.selectbox(
                     "Select year to visualise data:",
-                    options=list(range(2020, 2000, -1))
+                    options=['All (note: may be very slow)'] + list(range(2020, 2000, -1)),
+                    index=1
                     )
 
         suburb = st.selectbox("Select suburb", 
@@ -118,11 +144,11 @@ with st.sidebar:
 
 st.sidebar.write("""
 In the map:
-- light orange icon means crash resulted in property damage or medical treatment,
-- orange icon means crash resulted in minor injury or hospitalisation, and
-- red icon means crash resulted in fatality
+- yellow icon means crash resulted in: property damage or medical treatment,
+- orange icon means crash resulted in: minor injury or hospitalisation, and
+- red icon means crash resulted: in fatality
 
-More analysis is done here:
+More analysis is available here:
 https://github.com/ng-jason/qld-car-crash-data-analysis
 """)
 
@@ -131,6 +157,14 @@ https://github.com/ng-jason/qld-car-crash-data-analysis
 if property_only:
     rcl = rcl[rcl['Crash_Severity'] != 'Property damage only']
 
+
+
+####### start of map viz page #######
+
+# col1, col2 = st.columns(2)
+
+# with col1:
+# for some reason the folium_static map won't go into the col
 # visualise data on a map
 st.write("""
 ### Map visualisation of road crash locations
@@ -140,11 +174,9 @@ map_data = subset_data(rcl, year, suburb, street, property_only)
 m = make_map(map_data)
 folium_static(m)
 
-
-
-# left_col, right_col = st.columns(2)
-
+# with col2:
 st.write("""
+---
 ### Below are some graphs for the selected year/suburb/street
 """)
 
@@ -215,9 +247,8 @@ st.altair_chart(crash_per_hour(map_data), use_container_width=True)
 # st.altair_chart(chart, use_container_width=True)
 
 # data.head()
-st.write("First five rows of data", rcl[rcl['Crash_Year'] == year].head())
 
-    
-
-
-
+st.write("""
+---
+First five rows of data""", 
+rcl[rcl['Crash_Year'] == year].head())
