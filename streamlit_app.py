@@ -18,7 +18,11 @@ def get_data():
     return rcl
 
 @st.cache
-def subset_data(data, year=2020, suburb=None, street=None, ignore_property=True):
+def subset_data(data, year=2020, 
+                      suburb=None, 
+                      street=None, 
+                      severity=None, 
+                      ignore_property=True):
     """Subset data given year, suburb and street
 
     Args:
@@ -48,6 +52,10 @@ def subset_data(data, year=2020, suburb=None, street=None, ignore_property=True)
             data = data[data['Crash_Street'] == street]
         except:
             print(f"{street} not found")
+
+    if severity:
+        data = data[data['Crash_Severity'] == severity]
+
     return data
 
 # https://github.com/python-visualization/folium/tree/master/examples
@@ -135,6 +143,10 @@ with st.sidebar:
         street = st.selectbox("Select street", 
                                     options=[None] + rcl['Crash_Street'].unique().tolist()
                                     )
+        
+        severity = st.selectbox("Select crash severity", 
+                                    options=[None] + rcl['Crash_Severity'].unique().tolist()
+                                    )
 
         property_only = st.checkbox("Ignore property damage only crashes", 
                             value=True)
@@ -144,9 +156,10 @@ with st.sidebar:
 
 st.sidebar.write("""
 In the map:
-- yellow icon means crash resulted in: property damage or medical treatment,
-- orange icon means crash resulted in: minor injury or hospitalisation, and
-- red icon means crash resulted: in fatality
+- yellow marker means crash resulted in: `property damage` or `medical treatment`,
+- orange marker means crash resulted in: `minor injury` or `hospitalisation`, and
+- red marker means crash resulted: in `fatality`
+- click on circles to zoom in
 
 More analysis is available here:
 https://github.com/ng-jason/qld-car-crash-data-analysis
@@ -170,7 +183,7 @@ st.write("""
 ### Map visualisation of road crash locations
 """)
 
-map_data = subset_data(rcl, year, suburb, street, property_only)
+map_data = subset_data(rcl, year, suburb, street, severity, property_only)
 m = make_map(map_data)
 folium_static(m)
 
