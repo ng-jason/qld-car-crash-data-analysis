@@ -13,12 +13,13 @@ st.set_page_config()
 @st.cache
 def get_data():
     # Function to get road crash locations dataset
-    rcl_url = 'https://www.data.qld.gov.au/dataset/f3e0ca94-2d7b-44ee-abef-d6b06e9b0729/resource/e88943c0-5968-4972-a15f-38e120d72ec0/download/1_crash_locations.csv'
+    # NOTE: url for dataset may change each year
+    rcl_url = 'https://www.data.qld.gov.au/datastore/dump/e88943c0-5968-4972-a15f-38e120d72ec0?bom=True'
     rcl = pd.read_csv(rcl_url)
     return rcl
 
 @st.cache
-def subset_data(data, year=2020, 
+def subset_data(data, year=2021, 
                       suburb=None, 
                       street=None, 
                       severity=None, 
@@ -83,8 +84,8 @@ def make_map(map_data):
     
     for idx, row in map_data.iterrows():
         # plot data points that have both latitude/longitude 
-        if not np.isnan(row.Crash_Latitude_GDA94) and \
-            not np.isnan(row.Crash_Longitude_GDA94):
+        if not np.isnan(row.Crash_Latitude) and \
+            not np.isnan(row.Crash_Longitude):
             # display selected data to show in popuptext
             popuptext = f"Crash time: Hour = {row.Crash_Hour}, {row.Crash_Day_Of_Week} {row.Crash_Month} {row.Crash_Year}<br>\
                     Crash Severity: {row.Crash_Severity}<br>\
@@ -107,7 +108,7 @@ def make_map(map_data):
                 icon_color = 'beige'
             
             # finally add Marker to MarkerCluster
-            mc.add_child(Marker([row.Crash_Latitude_GDA94, row.Crash_Longitude_GDA94], 
+            mc.add_child(Marker([row.Crash_Latitude, row.Crash_Longitude], 
                                 popup=popup,
                                 icon=folium.Icon(color=icon_color)
                                )
@@ -132,7 +133,7 @@ with st.sidebar:
     with st.form(key='my_form'):
         year = st.selectbox(
                     "Select year to visualise data:",
-                    options=['All (note: may be very slow)'] + list(range(2020, 2000, -1)),
+                    options=['All (note: may be very slow)'] + list(range(2021, 2000, -1)),
                     index=1
                     )
 
