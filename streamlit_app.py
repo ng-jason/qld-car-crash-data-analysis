@@ -1,3 +1,4 @@
+from matplotlib.pyplot import text
 import streamlit as st
 from streamlit_folium import folium_static
 import altair as alt
@@ -8,7 +9,8 @@ import folium
 from folium import Marker
 from folium.plugins import MarkerCluster, Fullscreen
 
-st.set_page_config()
+st.set_page_config(page_title='QLD Road Crash Location Visualisation',
+                   layout='wide')
 
 @st.cache
 def get_data():
@@ -71,12 +73,9 @@ def make_map(map_data):
         folium Map object
     """
 
-    brisbane = [-27.467778, 153.028056]
-    m = folium.Map(location=brisbane,
-               zoom_start=7,
-               tiles="CartoDB positron")
+    m = folium.Map(tiles="CartoDB positron")
     
-    # add stuff
+    # add Fullscreen button
     Fullscreen(position="topright", force_separate_button=True).add_to(m)
 
     # add marker cluster
@@ -116,6 +115,11 @@ def make_map(map_data):
     
     # adds marker cluster to map
     m.add_child(mc)
+
+    # fit map to contain all points from https://stackoverflow.com/a/58185815/11065894
+    sw = map_data[['Crash_Latitude', 'Crash_Longitude']].min().values.tolist()
+    ne = map_data[['Crash_Latitude', 'Crash_Longitude']].max().values.tolist()
+    m.fit_bounds([sw, ne])
     
     return m
 
@@ -124,12 +128,6 @@ rcl = get_data()
 
 ####### sidebar #######
 with st.sidebar:
-    st.header("QLD Car Crash Data Visualisation")
-    st.write("""
-    [Crash data from Queensland roads](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads) contains data about road crash locations, road casualties, driver demographics, seatbelt restraints and helmet use, vehicle types and factors in road crashes.
-    """)
-
-
     with st.form(key='my_form'):
         year = st.selectbox(
                     "Select year to visualise data:",
@@ -162,8 +160,7 @@ In the map:
 - red marker means crash resulted: in `fatality`
 - click on circles to zoom in
 
-More analysis is available here:
-https://github.com/ng-jason/qld-car-crash-data-analysis
+Code: https://github.com/ng-jason/qld-car-crash-data-analysis
 """)
 
 
@@ -174,93 +171,76 @@ if property_only:
 
 
 ####### start of map viz page #######
+st.header("QLD Road Crash Location Visualisation")
 
-# col1, col2 = st.columns(2)
+col1, col2 = st.columns(2)
 
-# with col1:
-# for some reason the folium_static map won't go into the col
-# visualise data on a map
-st.write("""
-### Map visualisation of road crash locations
-""")
+with col1:
+    # visualise data on a map
+    map_data = subset_data(rcl, year, suburb, street, severity, property_only)
+    m = make_map(map_data)
+    folium_static(m)
 
-map_data = subset_data(rcl, year, suburb, street, severity, property_only)
-m = make_map(map_data)
-folium_static(m)
+    # top crash roads
+    def get_top_crash_roads(map_data):
+        roads = map_data.groupby('Crash_Street').size().reset_index(name='Count')
+        roads = roads.sort_values(by='Count', ascending=False)
 
-# with col2:
-st.write("""
----
-### Below are some graphs for the selected year/suburb/street
-""")
+        return alt.Chart(roads.head(10)).mark_bar().encode(
+            x='Count',
+            y=alt.Y('Crash_Street:O', sort='-x'),
+            tooltip='Count'
+        ).properties(
+            title=f"Roads with the most car crashes in {street or ''} {suburb or ''} {year or ''}"
+        )
 
-# Crash severity
-@st.cache(allow_output_mutation=True)
-def get_crash_severity(map_data):
-    crash_severity = map_data['Crash_Severity'].value_counts().reset_index(name='Count')
+    st.altair_chart(get_top_crash_roads(map_data), use_container_width=True)
 
-    return alt.Chart(crash_severity).mark_bar().encode(
-        x='Count',
-        y=alt.Y('index:O', title='Crash Severity', sort='-x')
-    ).properties(title="Crash Severity percentage")
+with col2:
 
-st.altair_chart(get_crash_severity(map_data), use_container_width=True)
+    # Crash severity
+    def get_crash_severity(map_data):
+        crash_severity = map_data['Crash_Severity'].value_counts(normalize=True).reset_index()
 
-# top crash roads
-@st.cache(allow_output_mutation=True)
-def get_top_crash_roads(map_data):
-    roads = map_data.groupby('Crash_Street').size().reset_index(name='Count')
-    roads = roads.sort_values(by='Count', ascending=False)
+        crash_severity.columns = ['Crash_Severity', 'Percentage']
+        
+        chart = alt.Chart(crash_severity).mark_arc().encode(
+            theta='Percentage',
+            color='Crash_Severity',
+            tooltip=['Percentage']
+        ).properties(title="Crash Severity")
+        return chart
 
-    return alt.Chart(roads.head(10)).mark_bar().encode(
-                                x='Count',
-                                y=alt.Y('Crash_Street:O', sort='-x') 
-    ).properties(title=f"Street with the most car crashes in {street or ''} {suburb or ''} {year or ''}")
-
-st.altair_chart(get_top_crash_roads(map_data), use_container_width=True)
-
-# crash day of week
-@st.cache(allow_output_mutation=True)
-def crash_per_day(map_data):
-    day_of_weeks = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-    crash_per_day = map_data.groupby('Crash_Day_Of_Week').size().reset_index(name='Count')
-
-    return alt.Chart(crash_per_day).mark_bar().encode(
-        x=alt.X('Crash_Day_Of_Week', sort=day_of_weeks),
-        y='Count'
-    ).properties(title=f"Number of crashes per day of the week in {street or ''} {suburb or ''} {year or ''}")
-
-st.altair_chart(crash_per_day(map_data), use_container_width=True)
+    st.altair_chart(get_crash_severity(map_data), use_container_width=True)
 
 
-# top crash hours
-@st.cache(allow_output_mutation=True)
-def crash_per_hour(map_data):
-    crash_per_hour = map_data.groupby('Crash_Hour').size().reset_index(name='Count')
+    # crash day of week
+    def crash_per_day(map_data):
+        day_of_weeks = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-    return alt.Chart(crash_per_hour).mark_bar(opacity=0.7).encode(
-        x='Crash_Hour:O',
-        y='Count'
-    ).properties(title=f"Number of crashes per hour of the day in {street or ''} {suburb or ''} {year or ''}")
+        crash_per_day = map_data.groupby('Crash_Day_Of_Week').size().reset_index(name='Count')
 
-st.altair_chart(crash_per_hour(map_data), use_container_width=True)
+        return alt.Chart(crash_per_day).mark_bar().encode(
+            x=alt.X('Crash_Day_Of_Week', sort=day_of_weeks),
+            y='Count',
+            tooltip='Count'
+        ).properties(title=f"Number of crashes per day of the week in {street or ''}{suburb or ''} {year or ''}")
+
+    st.altair_chart(crash_per_day(map_data), use_container_width=True)
 
 
-# st.write("""
-# ### Below are graphs for the whole data
-# """)
-# # statistics for whole data
+    # top crash hours
+    def crash_per_hour(map_data):
+        crash_per_hour = map_data.groupby('Crash_Hour').size().reset_index(name='Count')
 
-# # total crash count each year chart
-# total_year = rcl.groupby('Crash_Year').size().reset_index(name='Count')
-# chart = alt.Chart(total_year).mark_bar().encode(
-#     x='Crash_Year:O',  # https://altair-viz.github.io/user_guide/encoding.html#encoding-data-types
-#     y='Count'
-# ).properties(title='Total crash count each year')
-# st.altair_chart(chart, use_container_width=True)
+        return alt.Chart(crash_per_hour).mark_bar().encode(
+            x='Crash_Hour:O',
+            y='Count',
+            tooltip='Count'
+        ).properties(title=f"Number of crashes per hour of the day in {street or ''} {suburb or ''} {year or ''}")
 
-# data.head()
+    st.altair_chart(crash_per_hour(map_data), use_container_width=True)
+
 
 st.write("""
 ---
