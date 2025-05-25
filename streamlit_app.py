@@ -1,6 +1,6 @@
 from matplotlib.pyplot import text
 import streamlit as st
-from streamlit_folium import folium_static
+from streamlit_folium import st_folium
 import altair as alt
 import pandas as pd
 import numpy as np
@@ -12,16 +12,16 @@ from folium.plugins import MarkerCluster, Fullscreen
 st.set_page_config(page_title='QLD Road Crash Location Visualisation',
                    layout='wide')
 
-@st.cache
+@st.cache_data
 def get_data():
     # Function to get road crash locations dataset
     # NOTE: url for dataset may change each year
-    rcl_url = 'https://www.data.qld.gov.au/datastore/dump/e88943c0-5968-4972-a15f-38e120d72ec0?bom=True'
+    rcl_url = 'https://www.data.qld.gov.au/dataset/f3e0ca94-2d7b-44ee-abef-d6b06e9b0729/resource/e88943c0-5968-4972-a15f-38e120d72ec0/download/_1_crash_locations.csv'
     rcl = pd.read_csv(rcl_url)
     return rcl
 
-@st.cache
-def subset_data(data, year=2021, 
+@st.cache_data
+def subset_data(data, year=2023, 
                       suburb=None, 
                       street=None, 
                       severity=None, 
@@ -62,7 +62,7 @@ def subset_data(data, year=2021,
     return data
 
 # https://github.com/python-visualization/folium/tree/master/examples
-@st.cache(allow_output_mutation=True)
+@st.cache_data()
 def make_map(map_data):
     """Creates folium map with Markers and MarkerClusters with popup text containing crash data info
 
@@ -131,7 +131,7 @@ with st.sidebar:
     with st.form(key='my_form'):
         year = st.selectbox(
                     "Select year to visualise data:",
-                    options=['All (note: may be very slow)'] + list(range(2021, 2000, -1)),
+                    options=['All (note: may be very slow)'] + list(range(2023, 2000, -1)),
                     index=1
                     )
 
@@ -150,7 +150,7 @@ with st.sidebar:
         property_only = st.checkbox("Ignore property damage only crashes", 
                             value=True)
 
-        update_button = st.form_submit_button(label='Update map')
+        update_button = st.form_submit_button(label='Update page')
 
 
 st.sidebar.write("""
@@ -178,8 +178,12 @@ col1, col2 = st.columns(2)
 with col1:
     # visualise data on a map
     map_data = subset_data(rcl, year, suburb, street, severity, property_only)
+
+    st.markdown(f"There were a total of **{map_data.shape[0]}** crashes.")
+
+
     m = make_map(map_data)
-    folium_static(m)
+    st_folium(m, use_container_width=True)
 
     # top crash roads
     def get_top_crash_roads(map_data):
@@ -200,14 +204,23 @@ with col2:
 
     # Crash severity
     def get_crash_severity(map_data):
-        crash_severity = map_data['Crash_Severity'].value_counts(normalize=True).reset_index()
+        crash_severity = pd.concat(
+            [map_data['Crash_Severity']
+                .value_counts(normalize=True, sort=True)
+                .reset_index(name='Percentage'),
+            map_data['Crash_Severity']
+            .value_counts(normalize=False, sort=True)
+            .reset_index(name='Count')['Count'] # to concatenate only the count column
+            ]
+            , axis=1
+        )
 
-        crash_severity.columns = ['Crash_Severity', 'Percentage']
+        crash_severity.columns = ['Crash_Severity', 'Percentage', 'Count']
         
         chart = alt.Chart(crash_severity).mark_arc().encode(
             theta='Percentage',
             color='Crash_Severity',
-            tooltip=['Percentage']
+            tooltip=['Count', alt.Tooltip('Percentage', format='.2%')]
         ).properties(title="Crash Severity")
         return chart
 
